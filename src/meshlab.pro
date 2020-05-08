@@ -86,6 +86,7 @@ SUBDIRS += \ #sub projects names
     filter_trioptimize \
     filter_unsharp \
     filter_voronoi \
+    filter_virtual_goniometer \
 # Rendering and Decoration Plugins
     decorate_background \
     decorate_raster_proj \
@@ -174,6 +175,7 @@ filter_texture.subdir = meshlabplugins/filter_texture
 filter_trioptimize.subdir = meshlabplugins/filter_trioptimize
 filter_unsharp.subdir = meshlabplugins/filter_unsharp
 filter_voronoi.subdir = meshlabplugins/filter_voronoi
+filter_virtual_goniometer.subdir = meshlabplugins/filter_virtual_goniometer
 # Rendering and Decoration Plugins
 decorate_background.subdir = meshlabplugins/decorate_background
 decorate_raster_proj.subdir = meshlabplugins/decorate_raster_proj
@@ -250,6 +252,7 @@ filter_texture.depends = common
 filter_trioptimize.depends = common
 filter_unsharp.depends = common
 filter_voronoi.depends = common
+filter_virtual_goniometer.depends = common
 # Rendering and Decoration Plugins
 decorate_background.depends = common
 decorate_raster_proj.depends = common
