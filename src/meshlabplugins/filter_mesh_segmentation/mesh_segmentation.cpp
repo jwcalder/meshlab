@@ -284,7 +284,7 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
 
    parlst.addParam(new RichFloat("Radius", default_radius, "Connection radius", "Connection radius for graph construction."));
    parlst.addParam(new RichInt("Nodes", min(num_verts,5000), "Number of Nodes", "Number of nodes to use in graph construction."));
-   parlst.addParam(new RichDynamicFloat("p",2,0.1,2,"Weight Matrix parameter", "Parameter controlling how the weight matrix is constructed"));
+   parlst.addParam(new RichDynamicFloat("p",1,0.1,2,"Weight Matrix parameter", "Parameter controlling how the weight matrix is constructed"));
    switch(ID(action))
    {
       case FP_NORMAL_MESH_SEGMENTATION:
@@ -302,6 +302,18 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
          FaceList.push_back("Face 10:Dark Red");
          parlst.addParam(new RichEnum("FaceIndex", 0, FaceList, tr("Face index (if adding point):"), QString("Face index, if you are adding new point.")));
 
+         parlst.addParam(new RichBool("AdjustWeights",0,"Adjust weights (below)", "Toggles whether to enter weight adjustment mode."));
+
+         parlst.addParam(new RichDynamicFloat("Face1",1,0,2,"Face 1 (Red)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face2",1,0,2,"Face 2 (Blue)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face3",1,0,2,"Face 3 (Green)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face4",1,0,2,"Face 4 (Magenta)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face5",1,0,2,"Face 5 (Yellow)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face6",1,0,2,"Face 6 (Cyan)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face7",1,0,2,"Face 7 (Light Green)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face8",1,0,2,"Face 8 (Light Red)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face9",1,0,2,"Face 9 (Dark Green)", "Parameter controlling how heavily to weight the face."));
+         parlst.addParam(new RichDynamicFloat("Face10",1,0,2,"Face 10 (Dark Red)", "Parameter controlling how heavily to weight the face."));
          break;
       }
       case FP_NORMAL_MESH_CLUSTERING:
@@ -485,6 +497,18 @@ tuple<SparseMatrix, SparseMatrix, vector<unsigned int>, vector<unsigned int>, in
    
    return make_tuple(ND,I,subset,min_ind,min_nn);
 }
+vector<int> get_label_map(vector<int>& label_val){
+
+   vector<int> label_map;
+   vector<bool> label_present(C.size(),0);
+   for(int i=0; i<label_val.size(); i++)
+      label_present[label_val[i]] = 1;
+   for(int i=0; i<label_present.size(); i++){
+      if(label_present[i])
+         label_map.push_back(i);
+   }
+   return label_map;
+}
 
 //Without balancing
 Matrix PoissonForcing(int num_nodes, vector<int>& label_ind, vector<int>& label_val){
@@ -567,6 +591,7 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
    static vector<int> label_val;  //Label values
 
    static bool first_time = 1;
+   static bool RunOnce = 0;
    if(first_time && 0){
       //Test data
       label_ind_verts.push_back(95882);
@@ -575,11 +600,39 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
       label_val.push_back(1);
       first_time = 0;
    }
-   
+
+   static Matrix u;
+   static SparseMatrix I;
+   vector<double> face_weights;
+
+   if(ID(action) == FP_NORMAL_MESH_SEGMENTATION){
+      bool AdjustWeights = par.getBool("AdjustWeights");
+      vector<double> temp(C.size(),1.0);
+      temp[0] = par.getDynamicFloat("Face1");
+      temp[1] = par.getDynamicFloat("Face2");
+      temp[2] = par.getDynamicFloat("Face3");
+      temp[3] = par.getDynamicFloat("Face4");
+      temp[4] = par.getDynamicFloat("Face5");
+      temp[5] = par.getDynamicFloat("Face6");
+      temp[6] = par.getDynamicFloat("Face7");
+      temp[7] = par.getDynamicFloat("Face8");
+      temp[8] = par.getDynamicFloat("Face9");
+      temp[9] = par.getDynamicFloat("Face10");
+
+      vector<int> label_map = get_label_map(label_val);
+      for(int i=0; i < label_map.size(); i++)
+         face_weights.push_back(temp[label_map[i]]);
+
+      if(AdjustWeights && RunOnce){
+         print(face_weights);
+         ColorMesh(m,argmax(I*u.col_multiply(face_weights),1),label_map);
+         return true;
+      }
+   }
    //Number of selected vertices
    int num_selected_pts = tri::UpdateSelection<CMeshO>::VertexCount(m.cm);
 
-   if(num_selected_pts <= 10 && num_selected_pts >= 1)
+   if(num_selected_pts <= 50 && num_selected_pts >= 1)
    {
       //If points were selected, add to label_ind
       int FaceIndex = par.getEnum("FaceIndex");
@@ -593,7 +646,7 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
       //Matrices associated with the graph
       vector<unsigned int> subset; //Indices in {1,num_verts} of selected subset
       vector<unsigned int> min_ind; //Index of closest neighbor in graph
-      SparseMatrix I, ND; //Interpolation matrix I and pairwise normal distance matrix ND
+      SparseMatrix ND; //Interpolation matrix I and pairwise normal distance matrix ND
       int min_nn;
 
 
@@ -739,18 +792,20 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
                L = SparseMatrix::spdiags(W.sum(1)) - W;
 
 
+
                //Poisson Forcing 
                Matrix F = PoissonForcing(num_nodes, label_ind, label_val);
 
                //Setup label map and remove zero columns of F
-               vector<int> label_map;
+               /*vector<int> label_map;
                vector<bool> label_present(C.size(),0);
                for(int i=0; i<label_val.size(); i++)
                   label_present[label_val[i]] = 1;
                for(int i=0; i<label_present.size(); i++){
                   if(label_present[i])
                      label_map.push_back(i);
-               }
+               }*/
+               vector<int> label_map = get_label_map(label_val);
                //vector<int> label_map = nonzero(F.norm(0));
                F = F(arange(num_nodes),label_map);
               
@@ -760,12 +815,13 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
                F = F.row_divide(sdeg);
 
                //Conjugate gradient solver
-               Matrix u = conjgrad(Lp, F, sqrt(num_nodes)*1E-10);
+               u = conjgrad(Lp, F, sqrt(num_nodes)*1E-10);
                u = u.row_divide(sdeg);
+               
+               RunOnce = 1;
 
-               ColorMesh(m,argmax(I*u,1),label_map);
-               print(label_map);
-               print(label_val);
+               //ColorMesh(m,argmax(I*u,1),label_map);
+               ColorMesh(m,argmax(I*u.col_multiply(face_weights),1),label_map);
                break;
             }
          }

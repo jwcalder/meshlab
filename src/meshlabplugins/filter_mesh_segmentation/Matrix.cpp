@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 
+
 std::vector<double> splice(std::vector<double> w1, std::vector<double> w2, std::vector<bool> J){
    std::vector<double> w(J.size());
    int w1_ind=0, w2_ind=0;
