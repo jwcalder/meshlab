@@ -33,7 +33,7 @@
 #include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
 
-
+#include <random>
 #include <iostream>
 #include <cstdlib>
 #include <limits>
