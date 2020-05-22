@@ -40,8 +40,7 @@ class MeshSegmentationFilterPlugin : public QObject, public MeshFilterInterface
 		 - name of the plugin separated by _
 	*/
 	enum { 
-      FP_NORMAL_MESH_SEGMENTATION,
-      FP_NORMAL_MESH_CLUSTERING
+      FP_NORMAL_MESH_SEGMENTATION
 	} ;
 
 	MeshSegmentationFilterPlugin();

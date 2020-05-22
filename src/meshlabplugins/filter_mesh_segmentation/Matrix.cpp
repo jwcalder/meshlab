@@ -155,15 +155,23 @@ std::vector<int> kmeans(Matrix u, int k){
 }
 void print(std::vector<int> x){
    printf("\n[");
-   for(int i=0; i<x.size()-1; i++)
-      printf("%d,\n",x[i]);
-   printf("%d]\n",x[x.size()-1]);
+   if(x.size() > 0){
+      for(int i=0; i<x.size()-1; i++)
+         printf("%d,\n",x[i]);
+      printf("%d]\n",x[x.size()-1]);
+   }else{
+      printf("]\n");
+   }
 }
 void print(std::vector<double> x){
    printf("\n[");
-   for(int i=0; i<x.size()-1; i++)
-      printf("%f,\n",x[i]);
-   printf("%f]\n",x[x.size()-1]);
+   if(x.size() > 0){
+      for(int i=0; i<x.size()-1; i++)
+         printf("%f,\n",x[i]);
+      printf("%f]\n",x[x.size()-1]);
+   }else{
+      printf("]\n");
+   }
 }
 std::vector<int> arange(int a, int b){
    std::vector<int> result;
