@@ -49,10 +49,12 @@
 using namespace std;
 using namespace vcg;
 
-vector<Color4b> C{Color4b::Red,Color4b::Blue,Color4b::Green,Color4b::Magenta,Color4b::Yellow,Color4b::Cyan,Color4b::LightGreen,Color4b::LightRed,Color4b::DarkGreen,Color4b::DarkRed,Color4b::DarkBlue,Color4b::Black,Color4b::White,Color4b::Gray};
+vector<Color4b> C{Color4b::Red,Color4b::Blue,Color4b::Green,Color4b::Magenta,Color4b::Yellow,Color4b::Cyan,Color4b::LightGreen,Color4b::LightRed,Color4b::DarkGreen,Color4b::DarkRed,Color4b::DarkBlue,Color4b::White,Color4b::Gray,Color4b::Black};
 
 static vector<int> label_ind_verts; //Indices of labeled vertices
 static vector<int> label_val;  //Label values
+static char param_file[1000];
+static bool load_param_file = 0;
 
 // ERROR CHECKING UTILITY
 #define CheckError(x,y); if ((x)) {this->errorMessage = (y); return false;}
@@ -132,15 +134,42 @@ void mesh_name(MeshModel &m, char *plyfile){
    
    //Get mesh ply filename
    QString qs_plyfile = m.shortName();
+   QString qs_path = m.pathName();
+   char temp[1000];
+
    int len = qs_plyfile.length();
-   strcpy(plyfile,(char *)qUtf8Printable(qs_plyfile));
+   strcpy(temp,(char *)qUtf8Printable(qs_plyfile));
+   strcpy(plyfile,(char *)qUtf8Printable(qs_path));
 
-   //Remove .ply extension
-   plyfile[len-4] = '\0';
+   //If one of our meshes
+   if(temp[0] == 'M' && temp[1] == 'N' && temp[10] == '_')
+      temp[22] = '\0';
+   else//Just remove .ply extension
+      temp[len-4] = '\0';
 
-   //Remove _Mesh if found
-   if(!strcmp(plyfile+len-9,"_Mesh"))
-      plyfile[len-9] = '\0';
+   len = qs_path.length();
+   plyfile[len] = '/';
+   plyfile[len+1] = '\0';
+
+   strcat(plyfile,temp);
+}
+void save_params(char *out_file, float radius, int num_nodes, float p, vector<double> user_weights){
+
+   FILE *pFile;   
+   pFile = fopen(out_file,"w");
+   
+   fprintf(pFile,"Radius,%f\n",radius);
+   fprintf(pFile,"Number of nodes,%d\n",num_nodes);
+   fprintf(pFile,"Weight matrix parameter,%f\n",p);
+   for(int i=0; i<user_weights.size(); i++)
+      fprintf(pFile,"Face %d weight,%f\n",i+1,user_weights[i]);
+   
+   fprintf(pFile,"Vertex index, Label value\n");
+   for(int i=0; i<label_val.size(); i++)
+      fprintf(pFile,"%d,%d\n",label_ind_verts[i],label_val[i]);
+
+   fclose(pFile);
+
 }
 tuple<float, int, float, vector<double>> load_params(char *out_file){
 
@@ -149,15 +178,17 @@ tuple<float, int, float, vector<double>> load_params(char *out_file){
    vector<double> user_weights(C.size(),0.0);
    FILE *pFile;   
 
-   /*label_ind_verts.clear();
-   label_val.clear();*/
+   label_ind_verts.clear();
+   label_val.clear();
 
    pFile = fopen(out_file,"r");
 
    if(pFile == NULL){  //User defaults if file does not exist
+      printf("Could not find parameter file %s. Creating default file.\n",out_file);
       radius = 3.0;
       p = 1.0;
       num_nodes = 5000;
+      save_params(out_file, radius, num_nodes, p, user_weights);
    }else{
 
       fscanf(pFile,"Radius,%f\n",&radius);
@@ -185,24 +216,7 @@ tuple<float, int, float, vector<double>> load_params(char *out_file){
 
    return make_tuple(radius, num_nodes, p, user_weights);
 }
-void save_params(char *out_file, float radius, int num_nodes, float p, vector<double> user_weights){
 
-   FILE *pFile;   
-   pFile = fopen(out_file,"w");
-   
-   fprintf(pFile,"Radius,%f\n",radius);
-   fprintf(pFile,"Number of nodes,%d\n",num_nodes);
-   fprintf(pFile,"Weight matrix parameter,%f\n",p);
-   for(int i=0; i<user_weights.size(); i++)
-      fprintf(pFile,"Face %d weight,%f\n",i+1,user_weights[i]);
-   
-   fprintf(pFile,"Vertex index, Label value\n");
-   for(int i=0; i<label_val.size(); i++)
-      fprintf(pFile,"%d,%d\n",label_ind_verts[i],label_val[i]);
-
-   fclose(pFile);
-
-}
 
 double withness(vector<double> x)
 {
@@ -364,23 +378,25 @@ void color_ball(MeshModel &m, int ind, int k, Color4b color){
 
 void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &m, RichParameterSet &parlst)
 {
-   //Get *.ply mesh name
-   char plyfile[1000];
-   char out_file[1000];
-   mesh_name(m,plyfile);
-   sprintf(out_file,"%s/%s_MeshSegmentation_Parameters.txt",getenv("HOME"),plyfile);
-
-   //Load parameters from file
-   float default_radius, p;
-   int num_nodes;
-   vector<double> user_weights;
-   tie(default_radius,num_nodes,p,user_weights) = load_params(out_file);
-
    static bool first_call = 1;
    if(first_call){
       tri::UpdateColor<CMeshO>::PerVertexConstant(m.cm, Color4b::LightGray, FALSE);
+
+      char plyfile[1000];
+      mesh_name(m,plyfile);
+      sprintf(param_file,"%s_MeshSegParams.txt",plyfile);
       first_call = 0;
    }
+
+   //Load parameters from file
+   float default_radius = 3.0, p = 1.0;
+   int num_nodes = 5000;
+   vector<double> user_weights(C.size(),0.0);
+   if(load_param_file){
+      tie(default_radius,num_nodes,p,user_weights) = load_params(param_file);
+      load_param_file = 0;
+   }
+
    int num_verts = m.cm.vert.size();
    int num_selected_pts = tri::UpdateSelection<CMeshO>::VertexCount(m.cm);
 
@@ -409,12 +425,14 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
    FaceList.push_back("Face 9:Dark Green");
    FaceList.push_back("Face 10:Dark Red");
    FaceList.push_back("Face 11:Dark Blue");
-   FaceList.push_back("Face 12:Black");
-   FaceList.push_back("Face 13:White");
-   FaceList.push_back("Face 14:Gray");
-   parlst.addParam(new RichEnum("FaceIndex", 0, FaceList, tr("Face index (if adding point):"), QString("Face index, if you are adding new point.")));
+   FaceList.push_back("Face 12:White");
+   FaceList.push_back("Face 13:Gray");
+   FaceList.push_back("Face 14:Black");
+   FaceList.push_back("Delete all faces");
+   parlst.addParam(new RichEnum("FaceIndex", 0, FaceList, tr("Face index:"), QString("Face index, if you are adding new point or deleting a face.")));
 
    parlst.addParam(new RichBool("RunSeg",0,"Run segmentation", "Check when ready to run segmentation algorithm."));
+   parlst.addParam(new RichBool("DeleteFace",0,"Delete a face", "Removes all points from selected face."));
    parlst.addParam(new RichBool("AdjustWeights",0,"Adjust weights (below)", "Toggles whether to enter weight adjustment mode."));
 
    parlst.addParam(new RichDynamicFloat("Face1", user_weights[0],-1,1,"Face 1 (Red)", "Parameter controlling how heavily to weight the face."));
@@ -428,9 +446,13 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
    parlst.addParam(new RichDynamicFloat("Face9", user_weights[8],-1,1,"Face 9 (Dark Green)", "Parameter controlling how heavily to weight the face."));
    parlst.addParam(new RichDynamicFloat("Face10",user_weights[9],-1,1,"Face 10 (Dark Red)", "Parameter controlling how heavily to weight the face."));
    parlst.addParam(new RichDynamicFloat("Face11",user_weights[10],-1,1,"Face 11 (Dark Blue)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face12",user_weights[11],-1,1,"Face 12 (Black)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face13",user_weights[12],-1,1,"Face 13 (White)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face14",user_weights[13],-1,1,"Face 14 (Gray)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichDynamicFloat("Face12",user_weights[11],-1,1,"Face 12 (White)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichDynamicFloat("Face13",user_weights[12],-1,1,"Face 13 (Gray)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichDynamicFloat("Face14",user_weights[13],-1,1,"Face 14 (Black)", "Parameter controlling how heavily to weight the face."));
+
+   parlst.addParam(new RichBool("SaveParams",0,"Save Parameters", "Whether or not to save parameters to txt file."));
+   parlst.addParam(new RichBool("LoadParams",0,"Load Parameters", "Whether or not to load parameters from txt file."));
+	parlst.addParam(new RichSaveFile ("FileName",param_file, "*.txt", "Parameter file", "Name of parameter file to load or save to."));
 }
 
 void ColorMesh(MeshModel &m, vector<int> v){
@@ -580,44 +602,99 @@ vector<double> SpectralCluster(SparseMatrix W){
    return M.Largest_Eigenvector(u,sqrt(n)*1E-5).tovector();
 }
    
+void ColorLabels(MeshModel &m, int num_k){
+   for(int i=0; i<label_val.size(); i++){
+      color_ball(m,label_ind_verts[i],num_k/8,Color4b::Black);
+      color_ball(m,label_ind_verts[i],num_k/16,C[label_val[i]]);
+   }
+}
 
 bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md, RichParameterSet & par, vcg::CallBackPos * /*cb*/)
 {
    if (md.mm() == NULL)
       return false;
 
-   float radius = par.getFloat("Radius");
-   int num_nodes = par.getInt("Nodes");
-   float p = par.getDynamicFloat("p");
-   bool AdjustWeights = par.getBool("AdjustWeights");
-   bool RunSeg = par.getBool("RunSeg");
-
    //Mesh
    MeshModel &m=*(md.mm());
    int num_verts = m.cm.vert.size();
-   num_nodes = min(num_nodes,num_verts);
+  
+   //Requirements
+   tri::RequirePerVertexNormal(m.cm);
+   tri::UpdateNormal<CMeshO>::PerVertexNormalized(m.cm);
 
    //Check how many neighbors in radius ball
    VertexConstDataWrapper<CMeshO> wrapper(m.cm);
    KdTree<typename CMeshO::ScalarType> tree(wrapper);
    vector<float> dists;
    vector<unsigned int> points;
-   tree.doQueryDist(m.cm.vert[0].cP(),radius,points,dists);
-   int num_k = points.size();
+   int num_k;
 
-  
-   //Requirements
-   tri::RequirePerVertexNormal(m.cm);
-   tri::UpdateNormal<CMeshO>::PerVertexNormalized(m.cm);
+   static bool RunOnce = 0;
+   float radius, p;
+   int num_nodes;
+   vector<double> user_weights(C.size(),0.0);
 
-   //Get *.ply mesh name
-   char plyfile[1000];
-   char out_file[1000];
-   mesh_name(m,plyfile);
-   sprintf(out_file,"%s/%s_MeshSegmentation_Parameters.txt",getenv("HOME"),plyfile);
+   //Load all parameters
+   int FaceIndex = par.getEnum("FaceIndex");
+   bool AdjustWeights = par.getBool("AdjustWeights");
+   bool RunSeg = par.getBool("RunSeg");
+   bool SaveParams = par.getBool("SaveParams");
+   bool DeleteFace = par.getBool("DeleteFace");
+   load_param_file = par.getBool("LoadParams"); 
+
+   //Get parameter file name
+   QString qs_filename = par.getSaveFileName("FileName");
+   strcpy(param_file,(char *)qUtf8Printable(qs_filename));
+
+   if(load_param_file){//Load from file
+
+      tie(radius,num_nodes,p,user_weights) = load_params(param_file);
+
+      tree.doQueryDist(m.cm.vert[0].cP(),radius,points,dists);
+      num_k = points.size();
+
+      tri::UpdateColor<CMeshO>::PerVertexConstant(m.cm, Color4b::LightGray, FALSE);
+      ColorLabels(m,num_k);
+      RunOnce = 0;
+
+   }else{ //Load from user selection
+
+      radius = par.getFloat("Radius");
+      num_nodes = par.getInt("Nodes");
+      p = par.getDynamicFloat("p");
+
+      tree.doQueryDist(m.cm.vert[0].cP(),radius,points,dists);
+      num_k = points.size();
+
+      //Get weights
+      user_weights[0] = par.getDynamicFloat("Face1");
+      user_weights[1] = par.getDynamicFloat("Face2");
+      user_weights[2] = par.getDynamicFloat("Face3");
+      user_weights[3] = par.getDynamicFloat("Face4");
+      user_weights[4] = par.getDynamicFloat("Face5");
+      user_weights[5] = par.getDynamicFloat("Face6");
+      user_weights[6] = par.getDynamicFloat("Face7");
+      user_weights[7] = par.getDynamicFloat("Face8");
+      user_weights[8] = par.getDynamicFloat("Face9");
+      user_weights[9] = par.getDynamicFloat("Face10");
+      user_weights[10] = par.getDynamicFloat("Face11");
+      user_weights[11] = par.getDynamicFloat("Face12");
+      user_weights[12] = par.getDynamicFloat("Face13");
+      user_weights[13] = par.getDynamicFloat("Face14");
+   }
+   
+   //Number of nodes cannot be more than number of vertices
+   num_nodes = min(num_nodes,num_verts);
+
+   //Save parameter file if selected
+   if(SaveParams){
+      save_params(param_file, radius, num_nodes, p, user_weights);
+      printf("radius=%f\n",radius);
+      printf("num_nodes=%d\n",num_nodes);
+      printf("p=%f\n",p);
+   }
 
    static bool first_time = 1;
-   static bool RunOnce = 0;
    if(first_time && 0){
       //Test data
       label_ind_verts.push_back(95882);
@@ -629,37 +706,41 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
 
    static Matrix u;
    static SparseMatrix I;
-   vector<double> face_weights;
-   vector<double> user_weights(C.size(),1.0);
 
-   //Get face weights and recolor if AdjustWeights=True
-   user_weights[0] = par.getDynamicFloat("Face1");
-   user_weights[1] = par.getDynamicFloat("Face2");
-   user_weights[2] = par.getDynamicFloat("Face3");
-   user_weights[3] = par.getDynamicFloat("Face4");
-   user_weights[4] = par.getDynamicFloat("Face5");
-   user_weights[5] = par.getDynamicFloat("Face6");
-   user_weights[6] = par.getDynamicFloat("Face7");
-   user_weights[7] = par.getDynamicFloat("Face8");
-   user_weights[8] = par.getDynamicFloat("Face9");
-   user_weights[9] = par.getDynamicFloat("Face10");
-   user_weights[10] = par.getDynamicFloat("Face11");
-   user_weights[11] = par.getDynamicFloat("Face12");
-   user_weights[12] = par.getDynamicFloat("Face13");
-   user_weights[13] = par.getDynamicFloat("Face14");
-
+   //Convert user weights to face weights
    vector<int> label_map = get_label_map(label_val);
+   vector<double> face_weights;
    for(int i=0; i < label_map.size(); i++)
       face_weights.push_back(weight_map(user_weights[label_map[i]]));
 
    if(AdjustWeights && RunOnce){
       ColorMesh(m,argmax(I*u.col_multiply(face_weights),1),label_map);
-      save_params(out_file, radius, num_nodes, p, user_weights);
+      ColorLabels(m,num_k); 
+      return true;
+   }
 
-      for(int i=0; i<label_val.size(); i++){
-         color_ball(m,label_ind_verts[i],num_k/8,Color4b::Black);
-         color_ball(m,label_ind_verts[i],num_k/16,C[label_val[i]]);
+   if(DeleteFace){//If user selected to delete a face or all faces
+      if(FaceIndex == C.size()){
+         label_val.clear();
+         label_ind_verts.clear();
+      }else{
+         vector<int> new_label_val;
+         vector<int> new_label_ind_verts;
+         for(int i=0; i < label_val.size(); i++){
+            if(label_val[i] != FaceIndex){
+               new_label_val.push_back(label_val[i]);
+               new_label_ind_verts.push_back(label_ind_verts[i]);
+            }
+         }
+         label_val = new_label_val;
+         label_ind_verts = new_label_ind_verts;
       }
+
+      tri::UpdateColor<CMeshO>::PerVertexConstant(m.cm, Color4b::LightGray, FALSE);
+      ColorLabels(m,num_k);
+
+      if(SaveParams)
+         save_params(param_file, radius, num_nodes, p, user_weights);
       return true;
    }
 
@@ -669,28 +750,26 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
    if(num_selected_pts <= 50 && num_selected_pts >= 1)
    {
       //If points were selected, add to label_ind
-      int FaceIndex = par.getEnum("FaceIndex");
       int ind = index_first_selected(m);
-      color_ball(m,ind,num_k/8,Color4b::Black);
-      color_ball(m,ind,num_k/16,C[FaceIndex]);
-      label_ind_verts.push_back(ind);
-      label_val.push_back(FaceIndex);
+      if(FaceIndex >= C.size()){
+         Log("Invalid face selection");
+      }else{
+         color_ball(m,ind,num_k/8,Color4b::Black);
+         color_ball(m,ind,num_k/16,C[FaceIndex]);
+         label_ind_verts.push_back(ind);
+         label_val.push_back(FaceIndex);
 
-      if(!RunSeg){
-         //Color all labeled points
-         for(int i=0; i<label_val.size(); i++){
-            color_ball(m,label_ind_verts[i],num_k/8,Color4b::Black);
-            color_ball(m,label_ind_verts[i],num_k/16,C[label_val[i]]);
-         }
+         if(SaveParams)
+            save_params(param_file, radius, num_nodes, p, user_weights);
       }
+
+      if(!RunSeg)
+         ColorLabels(m,num_k);
+      
    }else if(label_map.size() >= 2)
    {
       if(!RunSeg){
-         //Color all labeled points
-         for(int i=0; i<label_val.size(); i++){
-            color_ball(m,label_ind_verts[i],num_k/8,Color4b::Black);
-            color_ball(m,label_ind_verts[i],num_k/16,C[label_val[i]]);
-         }
+         ColorLabels(m,num_k);
          return true;
       }
 
@@ -699,7 +778,6 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
       vector<unsigned int> min_ind; //Index of closest neighbor in graph
       SparseMatrix ND; //Interpolation matrix I and pairwise normal distance matrix ND
       int min_nn;
-
 
       tie(ND,I,subset,min_ind,min_nn) = GraphSetup(m, num_nodes, radius);
       
@@ -744,7 +822,6 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
             color_ball(m,label_ind_verts[i],num_k/16,C[label_val[i]]);
          }
          RunOnce = 1;
-         save_params(out_file, radius, num_nodes, p, user_weights);
 
 
 //Clutering code
