@@ -1116,7 +1116,7 @@ SphericalVolumeInvariantFilterPlugin::SphericalVolumeInvariantFilterPlugin()
       actionList << new QAction(filterName(tt), this);
       if (tt == FP_NORMAL_SPHERICAL_VOLUME_INVARIANT){
         //If you want a shortcut key, here it is:
-          actionList.last()->setShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_S);
+          //actionList.last()->setShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_S);
           actionList.last()->setPriority(QAction::HighPriority);
       }
     }
