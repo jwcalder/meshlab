@@ -257,7 +257,7 @@ Matrix conjgrad(SparseMatrix& A, Matrix& b, double tol, int T){
 
       std::vector<double> rsnew = sum(r.multiply(r),0);
       double err = norm(rsnew);
-      printf("i:%d,err:%f\n",i,err);
+      //printf("i:%d,err:%f\n",i,err);
       if(err < tol)
          break;
       

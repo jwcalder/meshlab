@@ -431,9 +431,16 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
    FaceList.push_back("Delete all faces");
    parlst.addParam(new RichEnum("FaceIndex", 0, FaceList, tr("Face index:"), QString("Face index, if you are adding new point or deleting a face.")));
 
-   parlst.addParam(new RichBool("RunSeg",0,"Run segmentation", "Check when ready to run segmentation algorithm."));
-   parlst.addParam(new RichBool("DeleteFace",0,"Delete a face", "Removes all points from selected face."));
-   parlst.addParam(new RichBool("AdjustWeights",0,"Adjust weights (below)", "Toggles whether to enter weight adjustment mode."));
+   QStringList Mode;
+   Mode.push_back("Add Point");
+   Mode.push_back("Run Segmentation");
+   Mode.push_back("Delete face");
+   Mode.push_back("Adjust weights");
+   Mode.push_back("Save Parameters");
+   Mode.push_back("Load Parameters");
+   parlst.addParam(new RichEnum("Mode", 0, Mode, tr("Mode:"), QString("Mode in which to operate the plugin.")));
+
+	parlst.addParam(new RichSaveFile ("FileName",param_file, "*.txt", "Parameter file", "Name of parameter file to load or save to."));
 
    parlst.addParam(new RichDynamicFloat("Face1", user_weights[0],-1,1,"Face 1 (Red)", "Parameter controlling how heavily to weight the face."));
    parlst.addParam(new RichDynamicFloat("Face2", user_weights[1],-1,1,"Face 2 (Blue)", "Parameter controlling how heavily to weight the face."));
@@ -450,9 +457,6 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
    parlst.addParam(new RichDynamicFloat("Face13",user_weights[12],-1,1,"Face 13 (Gray)", "Parameter controlling how heavily to weight the face."));
    parlst.addParam(new RichDynamicFloat("Face14",user_weights[13],-1,1,"Face 14 (Black)", "Parameter controlling how heavily to weight the face."));
 
-   parlst.addParam(new RichBool("SaveParams",0,"Save Parameters", "Whether or not to save parameters to txt file."));
-   parlst.addParam(new RichBool("LoadParams",0,"Load Parameters", "Whether or not to load parameters from txt file."));
-	parlst.addParam(new RichSaveFile ("FileName",param_file, "*.txt", "Parameter file", "Name of parameter file to load or save to."));
 }
 
 void ColorMesh(MeshModel &m, vector<int> v){
@@ -636,11 +640,29 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
 
    //Load all parameters
    int FaceIndex = par.getEnum("FaceIndex");
-   bool AdjustWeights = par.getBool("AdjustWeights");
-   bool RunSeg = par.getBool("RunSeg");
-   bool SaveParams = par.getBool("SaveParams");
-   bool DeleteFace = par.getBool("DeleteFace");
-   load_param_file = par.getBool("LoadParams"); 
+   int mode = par.getEnum("Mode");
+   bool RunSeg = false;
+   bool DeleteFace = false;
+   bool AdjustWeights = false;
+   bool SaveParams = false;
+   load_param_file = false;
+   switch(mode){
+      case 1:
+         RunSeg = true;
+         break;
+      case 2:
+         DeleteFace = true;
+         break;
+      case 3:
+         AdjustWeights = true;
+         break;
+      case 4:
+         SaveParams = true;
+         break;
+      case 5:
+         load_param_file = true;
+         break;
+   }
 
    //Get parameter file name
    QString qs_filename = par.getSaveFileName("FileName");
@@ -689,9 +711,6 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
    //Save parameter file if selected
    if(SaveParams){
       save_params(param_file, radius, num_nodes, p, user_weights);
-      printf("radius=%f\n",radius);
-      printf("num_nodes=%d\n",num_nodes);
-      printf("p=%f\n",p);
    }
 
    static bool first_time = 1;
