@@ -595,7 +595,7 @@ vector<int> VirtualGoniometer(vector<float> &vecx, vector<float> &vecy, vector<f
    theta[0] = 180-acos(m1[0]*m2[0] + m1[1]*m2[1] + m1[2]*m2[2])*(180/3.1415926);
    theta[1] = 180-acos(n1[0]*n2[0] + n1[1]*n2[1] + n1[2]*n2[2])*(180/3.1415926);
    
-   o1[0] = m1[0]; o1[1] = m1[1]; o1[2] = m1[2];
+   /*o1[0] = m1[0]; o1[1] = m1[1]; o1[2] = m1[2];
    RobustPCA(vecx, vecy, vecz, o1, C, 1, 100, FALSE);
 
    o2[0] = m2[0]; o2[1] = m2[1]; o2[2] = m2[2];
@@ -603,7 +603,7 @@ vector<int> VirtualGoniometer(vector<float> &vecx, vector<float> &vecy, vector<f
    
    theta[2] = 180-acos(o1[0]*o2[0] + o1[1]*o2[1] + o1[2]*o2[2])*(180/3.1415926);
 
-   /*o1[0] = m1[0]; o1[1] = m1[1]; o1[2] = m1[2];
+   o1[0] = m1[0]; o1[1] = m1[1]; o1[2] = m1[2];
    RobustPCA(vecx, vecy, vecz, o1, C, 1, 1000, TRUE);
 
    o2[0] = m2[0]; o2[1] = m2[1]; o2[2] = m2[2];
@@ -1155,14 +1155,14 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
                   color_patch(m, subset_indices(points,C,2), Color2[(break_number-1)%num_color_combos]);
                }
 
-               Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, rad, theta[2]);
-               //this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[2]);
+               Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, rad, theta[0]);
+               //this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[0]);
 
                float frac_measurement_number = measurement_number + (float)j/(float)num_radii;
 
                //Output to csv file 
                pFile = fopen(out_file,"a");
-               fprintf(pFile,"%s,%s,%.2f,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f\n",plyfile,date_time,frac_measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[2],points.size(),rad,m.cm.vert[i].P()[0],m.cm.vert[i].P()[1],m.cm.vert[i].P()[2],theta[0]);
+               fprintf(pFile,"%s,%s,%.2f,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f\n",plyfile,date_time,frac_measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[0],points.size(),rad,m.cm.vert[i].P()[0],m.cm.vert[i].P()[1],m.cm.vert[i].P()[2]);
                fclose(pFile);
 
                rad+=change;
@@ -1194,12 +1194,12 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
          color_patch(m, subset_indices(indices,C,2), Color2[(break_number-1)%num_color_combos]);
 
          //Print angle to log
-         Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[2]);
-         this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[2]);
+         Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[0]);
+         this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[0]);
 
          //Output to csv file 
          pFile = fopen(out_file,"a");
-         fprintf(pFile,"%s,%s,%d,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f\n",plyfile,date_time,measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[2],num_selected_pts,radius,surf_meanx,surf_meany,surf_meanz,theta[0]);
+         fprintf(pFile,"%s,%s,%d,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f\n",plyfile,date_time,measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[0],num_selected_pts,radius,surf_meanx,surf_meany,surf_meanz);
          fclose(pFile);
 
          //Increment measurement number
