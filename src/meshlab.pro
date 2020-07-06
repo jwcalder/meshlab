@@ -88,6 +88,7 @@ SUBDIRS += \ #sub projects names
     filter_voronoi \
     filter_virtual_goniometer \
     filter_mesh_segmentation \
+    filter_spherical_volume_invariant \
 # Rendering and Decoration Plugins
     decorate_background \
     decorate_raster_proj \
@@ -178,6 +179,7 @@ filter_unsharp.subdir = meshlabplugins/filter_unsharp
 filter_voronoi.subdir = meshlabplugins/filter_voronoi
 filter_virtual_goniometer.subdir = meshlabplugins/filter_virtual_goniometer
 filter_mesh_segmentation.subdir = meshlabplugins/filter_mesh_segmentation
+filter_spherical_volume_invariant.subdir = meshlabplugins/filter_spherical_volume_invariant
 # Rendering and Decoration Plugins
 decorate_background.subdir = meshlabplugins/decorate_background
 decorate_raster_proj.subdir = meshlabplugins/decorate_raster_proj
@@ -256,6 +258,7 @@ filter_unsharp.depends = common
 filter_voronoi.depends = common
 filter_virtual_goniometer.depends = common
 filter_mesh_segmentation.depends = common
+filter_spherical_volume_invariant.depends = common
 # Rendering and Decoration Plugins
 decorate_background.depends = common
 decorate_raster_proj.depends = common
