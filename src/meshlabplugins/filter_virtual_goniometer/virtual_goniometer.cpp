@@ -33,6 +33,9 @@
 #include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
 
+/*#include <eigenlib/Eigen/Eigenvalues>
+#include <complex>*/
+
 
 #include <iostream>
 #include <fstream>
@@ -46,6 +49,8 @@
 
 using namespace std;
 using namespace vcg;
+
+static float SegParam = 2.0;
 
 #define TRUE 1
 #define FALSE 0
@@ -134,6 +139,8 @@ void VirtualGoniometerFilterPlugin::initParameterSet(QAction *action, MeshModel 
          parlst.addParam(new RichPoint3f("Location", Point3f(0.0f, 0.0f, 0.0f), "Location", "Location on mesh to run Virtual Goniometer."));
          parlst.addParam(new RichFloat("Radius", 3.0, "Radius", "Radius of patch to use."));
          parlst.addParam(new RichBool("Automatic Radius", FALSE, "Automatic Radius", "Use automatic radius selection and take multiple measurements."));
+         parlst.addParam(new RichDynamicFloat("SegParam",SegParam,0.0,5.0,"Segmentation Parameter", "Parameter controlling how much influence the geometry has in segmentation."));
+         parlst.addParam(new RichBool("UpdateParam", FALSE, "Update Parameter Only", "Only update the segmentation parameter, and do not run the virtual goniometer."));
       }
       break;
 
@@ -319,7 +326,7 @@ void power_method(float *C1, float *C2, float *C3, float tol, float *l, float *v
 	}
 }
 
-void PCA_smallest_eig(vector<float> &vecx, vector<float> &vecy, vector<float> &vecz, float *eig, vector<int> &C, int c, bool center){
+float PCA_smallest_eig(vector<float> &vecx, vector<float> &vecy, vector<float> &vecz, float *eig, vector<int> &C, int c, bool center){
    
    //Rows of covariance matrix
    float C1[3] = {0,0,0};
@@ -378,14 +385,47 @@ void PCA_smallest_eig(vector<float> &vecx, vector<float> &vecy, vector<float> &v
    C3[0] = C1[2];
    C3[1] = C2[2];
 
+   /*typedef Eigen::Matrix<double, 3, 3> Matrix3d;
+   Eigen::Matrix3d A;
+
+   A(0,0) = C1[0]; A(0,1) = C1[1]; A(0,2) = C1[2];
+   A(1,0) = C2[0]; A(1,1) = C2[1]; A(1,2) = C2[2];
+   A(2,0) = C3[0]; A(2,1) = C3[1]; A(2,2) = C3[2];
+
+   Eigen::EigenSolver<Matrix3d> es;*/
+//   es.compute(A, /* computeEigenvectors = */ true);
+   
    //Spectral shift
    power_method(C1, C2, C3, 1E-10, &l, eig);
+   float lmax = l;
+   //printf("lmax=%f\n",lmax);
    C1[0] = C1[0] - l - 1;
    C2[1] = C2[1] - l - 1;
    C3[2] = C3[2] - l - 1;
 
    //Find eigenvector
    power_method(C1, C2, C3, 1E-10, &l, eig);
+   float lmin = l + lmax + 1;
+   return lmin;
+   //printf("lmin=%f\n",l+lmax+1);
+   
+
+/*   double l1 = es.eigenvalues()(0,0).real();
+   double l2 = es.eigenvalues()(1,0).real();
+   double l3 = es.eigenvalues()(2,0).real();
+
+   int j = 0;
+   if(l2 < l1 && l2 < l3)
+      j = 1;
+   if(l3 < l2 && l3 < l1)
+      j = 2; 
+
+   double e1 = es.eigenvectors()(0,j).real();
+   double e2 = es.eigenvectors()(1,j).real();
+   double e3 = es.eigenvectors()(2,j).real();
+   printf("eigval=(%f,%f,%f)\n",l1,l2,l3);
+   printf("eig=(%f,%f,%f)\n",e1,e2,e3);
+   printf("myeig=(%f,%f,%f)\n",eig[0],eig[1],eig[2]);*/
 
 }
 
@@ -510,8 +550,7 @@ vector<int> ClusterPatch(vector<float> &vecx, vector<float> &vecy, vector<float>
    
    for(int k=0 ;k<n ;k++){
       x[k] = normalx[k]*v[0] + normaly[k]*v[1] + normalz[k]*v[2];
-      x[k]+= 2*((vecx[k] - surf_meanx)*v[0] + (vecy[k] - surf_meany)*v[1] + (vecz[k] - surf_meanz)*v[2])/radius;
-      //x[k]+= 0.5*((vecx[k] - surf_meanx)*v[0] + (vecy[k] - surf_meany)*v[1] + (vecz[k] - surf_meanz)*v[2]);
+      x[k]+= SegParam*((vecx[k] - surf_meanx)*v[0] + (vecy[k] - surf_meany)*v[1] + (vecz[k] - surf_meanz)*v[2])/radius;
    }
    withness(x,&w,&m,&mlow,&mhigh);
 
@@ -534,7 +573,7 @@ vector<int> ClusterPatch(vector<float> &vecx, vector<float> &vecy, vector<float>
    return C;
 }
 
-vector<int> VirtualGoniometer(vector<float> &vecx, vector<float> &vecy, vector<float> &vecz, vector<float> &normalx, vector<float> &normaly, vector<float> &normalz, float surf_meanx, float surf_meany, float surf_meanz, float radius, float *theta)
+vector<int> VirtualGoniometer(vector<float> &vecx, vector<float> &vecy, vector<float> &vecz, vector<float> &normalx, vector<float> &normaly, vector<float> &normalz, float surf_meanx, float surf_meany, float surf_meanz, float radius, float *theta, float *fit)
 {
    int T = 100;
    int n = normalx.size();
@@ -575,8 +614,9 @@ vector<int> VirtualGoniometer(vector<float> &vecx, vector<float> &vecy, vector<f
    n2[2] = n2[2]/n2_norm;
 
    //Compute normals by PCA 
-   PCA_smallest_eig(vecx, vecy, vecz, m1, C, 1, TRUE);
-   PCA_smallest_eig(vecx, vecy, vecz, m2, C, 2, TRUE);
+   float fit1 = PCA_smallest_eig(vecx, vecy, vecz, m1, C, 1, TRUE);
+   float fit2 = PCA_smallest_eig(vecx, vecy, vecz, m2, C, 2, TRUE);
+   *fit = fit1 + fit2;
 
    //Check signs of normals
    float dot = n1[0]*m1[0] + n1[1]*m1[1] + n1[2]*m1[2];
@@ -797,6 +837,7 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
    int num_verts = m.cm.vert.size();
 
    //Variables for virtual goniometer
+   float fit;
    vector<float> vecx, vecy, vecz, normalx, normaly, normalz;
    float theta[4];
    float meanx, meany, meanz, surf_meanx, surf_meany, surf_meanz, radius;
@@ -829,7 +870,7 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
    pFile = fopen(out_file,"r");
    if(pFile == NULL){
       pFile = fopen(out_file,"w");
-      fprintf(pFile,"Mesh Name,Date,Measurement #,Break #,Colors,User Data,Angle,Number of Vertices,Radius,x,y,z\n");
+      fprintf(pFile,"Mesh Name,Date,Measurement #,Break #,Colors,User Data,Angle,Number of Vertices,Radius,x,y,z,fit,SegParam\n");
    }
    fclose(pFile);
 
@@ -1069,6 +1110,11 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
          if (num_selected_pts == 0) { 
 
 		      Point3m location =  par.getPoint3m("Location");
+            SegParam = par.getDynamicFloat("SegParam");
+            bool NoSeg = par.getBool("UpdateParam");
+            if(NoSeg)
+               break;
+
             float radius = par.getFloat("Radius");
             bool automatic = par.getBool("Automatic Radius");
             float a = Distance(m.cm.vert[0].cP(),location);
@@ -1142,7 +1188,7 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
                //Run virtual goniometer
                get_vertices(m, points, vecx, vecy, vecz);
                get_normals(m, points, normalx, normaly, normalz);
-               vector<int> C = VirtualGoniometer(vecx, vecy, vecz, normalx, normaly, normalz, m.cm.vert[i].P()[0], m.cm.vert[i].P()[1], m.cm.vert[i].P()[2], rad, theta);
+               vector<int> C = VirtualGoniometer(vecx, vecy, vecz, normalx, normaly, normalz, m.cm.vert[i].P()[0], m.cm.vert[i].P()[1], m.cm.vert[i].P()[2], rad, theta, &fit);
 
                //Color mesh for largest
                //if(j==(int)(num_radii/2)){
@@ -1155,14 +1201,14 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
                   color_patch(m, subset_indices(points,C,2), Color2[(break_number-1)%num_color_combos]);
                }
 
-               Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, rad, theta[0]);
+               Log("Break #%d, Radius=%.1f, Angle = %.0f, Fit = %.4f\n", break_number, rad, theta[0], fit);
                //this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[0]);
 
                float frac_measurement_number = measurement_number + (float)j/(float)num_radii;
 
                //Output to csv file 
                pFile = fopen(out_file,"a");
-               fprintf(pFile,"%s,%s,%.2f,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f\n",plyfile,date_time,frac_measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[0],points.size(),rad,m.cm.vert[i].P()[0],m.cm.vert[i].P()[1],m.cm.vert[i].P()[2]);
+               fprintf(pFile,"%s,%s,%.2f,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f,%f\n",plyfile,date_time,frac_measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[0],points.size(),rad,m.cm.vert[i].P()[0],m.cm.vert[i].P()[1],m.cm.vert[i].P()[2],fit,SegParam);
                fclose(pFile);
 
                rad+=change;
@@ -1183,7 +1229,7 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
          get_vertices(m, indices, vecx, vecy, vecz);
          get_normals(m, indices, normalx, normaly, normalz);
          patch_statistics(vecx, vecy, vecz, &meanx, &meany, &meanz, &surf_meanx, &surf_meany, &surf_meanz, &radius);
-         vector<int> C = VirtualGoniometer(vecx, vecy, vecz, normalx, normaly, normalz,  surf_meanx, surf_meany, surf_meanz, radius, theta);
+         vector<int> C = VirtualGoniometer(vecx, vecy, vecz, normalx, normaly, normalz,  surf_meanx, surf_meany, surf_meanz, radius, theta, &fit);
 
          //Color mesh
          for(k=0;k<indices.size();k++){//Set past selection to record patch
@@ -1194,12 +1240,12 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
          color_patch(m, subset_indices(indices,C,2), Color2[(break_number-1)%num_color_combos]);
 
          //Print angle to log
-         Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[0]);
-         this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, theta[0]);
+         Log("Break #%d, Radius=%.1f, Angle = %.0f, Fit = %.4f\n", break_number, radius, theta[0], fit);
+         this->RealTimeLog(QString("Virtual Goniometer"),m.shortName(),"Break #%d, Radius=%.1f, Angle = %.0f, Fit = %.4f\n", break_number, radius, theta[0], fit);
 
          //Output to csv file 
          pFile = fopen(out_file,"a");
-         fprintf(pFile,"%s,%s,%d,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f\n",plyfile,date_time,measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[0],num_selected_pts,radius,surf_meanx,surf_meany,surf_meanz);
+         fprintf(pFile,"%s,%s,%d,%d,%s/%s, ,%f,%d,%f,%f,%f,%f,%f,%f\n",plyfile,date_time,measurement_number,break_number,Color1_name[(break_number-1)%num_color_combos],Color2_name[(break_number-1)%num_color_combos],theta[0],num_selected_pts,radius,surf_meanx,surf_meany,surf_meanz,fit,SegParam);
          fclose(pFile);
 
          //Increment measurement number
