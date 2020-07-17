@@ -176,9 +176,9 @@ static void DeletePerVertexAttribute(_MyMeshType& m)
     KNNGraph<_MyMeshType>::DeleteKNNTree(m);
 
     bool hasDistParam = tri::HasPerVertexAttribute(m, "DistParam");
-    if (hasDistParam) {
+    /*if (hasDistParam) {
         Allocator<_MyMeshType>::DeletePerVertexAttribute(m, "DistParam");
-    }
+    }*/
     return;
 }
 
