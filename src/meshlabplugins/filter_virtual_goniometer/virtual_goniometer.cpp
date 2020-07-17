@@ -24,14 +24,18 @@
 #include <math.h>
 #include <stdlib.h>
 #include <vcg/space/colorspace.h>
+#include <vcg/space/fitting3.h>
 #include "virtual_goniometer.h"
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/stat.h>
 #include <vcg/complex/algorithms/point_outlier.h>
+#include <vcg/complex/algorithms/create/platonic.h>
 
 #include <QOpenGLContext>
 #include <vcg/complex/algorithms/update/color.h>
 #include <vcg/complex/algorithms/update/normal.h>
+
+#include "connectedComponent.h"
 
 /*#include <eigenlib/Eigen/Eigenvalues>
 #include <complex>*/
@@ -45,6 +49,10 @@
 #include <algorithm>
 #include <numeric>
 #include <ctime>
+
+
+
+
 
 
 using namespace std;
@@ -232,6 +240,26 @@ void patch_statistics(vector<float> &vecx, vector<float> &vecy, vector<float> &v
    *radius = sqrt(*radius);
 }
 
+void geodesic_patch_info(MeshModel &m, float *radius, int *center_ind)
+{
+
+   CMeshO::PerVertexAttributeHandle<float> distFromCenter = vcg::tri::Allocator<CMeshO>::GetPerVertexAttribute<float>(m.cm, std::string("DistParam"));
+
+   //Get radius of patch
+   *radius = 0.0;
+   *center_ind = 0;
+   float a = distFromCenter[0];
+   for(int i=0; i < m.cm.vert.size(); i++){
+      if(m.cm.vert[i].IsS()){
+         if(distFromCenter[i] < a){
+            *center_ind = i;
+            a = distFromCenter[i];
+         }
+         *radius = MAX(*radius,distFromCenter[i]);
+      }
+   }
+
+}
 
 void withness(vector<float> x, float *w, float *m, float *mlow, float *mhigh)
 {
@@ -1109,6 +1137,8 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
          //If no points are selected
          if (num_selected_pts == 0) { 
 
+
+
 		      Point3m location =  par.getPoint3m("Location");
             SegParam = par.getDynamicFloat("SegParam");
             bool NoSeg = par.getBool("UpdateParam");
@@ -1132,24 +1162,39 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
                m.cm.vert[ind].SetS();
                num_selected_pts = 1;
             }else{
-               VertexConstDataWrapper<CMeshO> wrapper(m.cm);
-               KdTree<typename CMeshO::ScalarType> tree(wrapper);
+
+               //Dijkstra to find component of radius radius
+               std::vector<CMeshO::VertexPointer> NotReachableVector;
+               std::vector<CMeshO::VertexPointer> BorderVector;
+               std::vector<CMeshO::VertexPointer> ComponentVector;
+               CMeshO::VertexPointer StartingVertex = &(m.cm.vert[ind]);
+               NotReachableVector.clear();
+               ComponentVector.clear();
+               float maxHop = m.cm.bbox.Diag() / 100.0;
+               tri::ComponentFinder<CMeshO>::Dijkstra(m.cm, *StartingVertex, 6, maxHop, NotReachableVector);
+               ComponentVector = tri::ComponentFinder<CMeshO>::FindComponent(m.cm, radius, BorderVector, NotReachableVector);
+
+
+               /*VertexConstDataWrapper<CMeshO> wrapper(m.cm);
+               KdTree<typename CMeshO::ScalarType> tree(wrapper);*/
                
                //Find neighborhood
-               vector<float> dists;
-               vector<unsigned int> points;
-               tree.doQueryDist(m.cm.vert[ind].cP(),radius,points,dists);
+               //vector<float> dists;
+               //vector<unsigned int> points;
+               //tree.doQueryDist(m.cm.vert[ind].cP(),radius,points,dists);
 
-               if(points.size() <= 10){
+               if(ComponentVector.size() <= 10){
                   Log("Radius too small.");
                   break;
                }else{
-                  num_selected_pts = points.size();
+                  num_selected_pts = ComponentVector.size();
 
                   //Make selection
                   tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
-                  for(i=0;i<points.size();i++)
-                     m.cm.vert[points[i]].SetS();
+                  /*for(i=0;i<points.size();i++)
+                     m.cm.vert[points[i]].SetS();*/
+                  for(i=0;i<ComponentVector.size();i++)
+                     ComponentVector[i]->SetS();
                }
             }
          }
@@ -1223,13 +1268,20 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
 
          //Get selected indices and clear selection  
          indices = get_selected_indices(m);
-         tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
 
          //Run virtual goniometer
          get_vertices(m, indices, vecx, vecy, vecz);
          get_normals(m, indices, normalx, normaly, normalz);
-         patch_statistics(vecx, vecy, vecz, &meanx, &meany, &meanz, &surf_meanx, &surf_meany, &surf_meanz, &radius);
+         int center_ind = 0;
+         geodesic_patch_info(m, &radius, &center_ind);
+         tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
+         surf_meanx = m.cm.vert[center_ind].P()[0];
+         surf_meany = m.cm.vert[center_ind].P()[1];
+         surf_meanz = m.cm.vert[center_ind].P()[2];
+         //patch_statistics(vecx, vecy, vecz, &meanx, &meany, &meanz, &surf_meanx, &surf_meany, &surf_meanz, &radius);
          vector<int> C = VirtualGoniometer(vecx, vecy, vecz, normalx, normaly, normalz,  surf_meanx, surf_meany, surf_meanz, radius, theta, &fit);
+
+
 
          //Color mesh
          for(k=0;k<indices.size();k++){//Set past selection to record patch
