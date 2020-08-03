@@ -134,6 +134,22 @@ QString VirtualGoniometerFilterPlugin::filterInfo(FilterIDType filterId) const
  return QString("Unknown filter");
 }
 
+int index_first_selected(MeshModel &m){
+
+   int i=0;
+   CMeshO::VertexIterator vi;
+   for(vi=m.cm.vert.begin(); vi!=m.cm.vert.end(); ++vi)
+   {
+      if(!(*vi).IsD() && (*vi).IsS()){
+         (*vi).ClearS();
+         break;
+      }
+      i++;
+   }   
+   return i;
+}
+
+
 void VirtualGoniometerFilterPlugin::initParameterSet(QAction *action, MeshModel &m, RichParameterSet &parlst)
 {
  switch(ID(action))
@@ -143,11 +159,18 @@ void VirtualGoniometerFilterPlugin::initParameterSet(QAction *action, MeshModel 
       //Get number of selected vertices
       int num_selected_pts = tri::UpdateSelection<CMeshO>::VertexCount(m.cm);
       
-      if(num_selected_pts == 0){
-         parlst.addParam(new RichPoint3f("Location", Point3f(0.0f, 0.0f, 0.0f), "Location", "Location on mesh to run Virtual Goniometer."));
+      if(num_selected_pts <= 10){
+         float x=0.0f, y=0.0f, z=0.0f;
+         if(num_selected_pts >= 1){
+            int i = index_first_selected(m);
+            x = m.cm.vert[i].P()[0];
+            y = m.cm.vert[i].P()[1];
+            z = m.cm.vert[i].P()[2];
+         }
+         parlst.addParam(new RichPoint3f("Location", Point3f(x,y,z), "Location", "Location on mesh to run Virtual Goniometer."));
          parlst.addParam(new RichFloat("Radius", 3.0, "Radius", "Radius of patch to use."));
-         parlst.addParam(new RichBool("Automatic Radius", FALSE, "Automatic Radius", "Use automatic radius selection and take multiple measurements."));
          parlst.addParam(new RichDynamicFloat("SegParam",SegParam,0.0,5.0,"Segmentation Parameter", "Parameter controlling how much influence the geometry has in segmentation."));
+         parlst.addParam(new RichBool("Automatic Radius", FALSE,"Burst measurements", "Use automatic radius selection and take multiple measurements."));
          parlst.addParam(new RichBool("UpdateParam", FALSE, "Update Parameter Only", "Only update the segmentation parameter, and do not run the virtual goniometer."));
       }
       break;
@@ -791,21 +814,6 @@ void update_colors(int *ci, int *cj, int num_colors){
    *cj = color_j;
 }
 
-int index_first_selected(MeshModel &m){
-
-   int i=0;
-   CMeshO::VertexIterator vi;
-   for(vi=m.cm.vert.begin(); vi!=m.cm.vert.end(); ++vi)
-   {
-      if(!(*vi).IsD() && (*vi).IsS()){
-         (*vi).ClearS();
-         break;
-      }
-      i++;
-   }   
-   return i;
-}
-
 //Returns indices of vertices in mesh that were selected
 vector<unsigned int> get_selected_indices(MeshModel &m){
    
@@ -1049,9 +1057,6 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
 
                      Log("Break #%d, Radius=%.1f, Angle = %.0f\n", break_number, radius, angle);
 
-                     VertexConstDataWrapper<CMeshO> wrapper(m.cm);
-                     KdTree<typename CMeshO::ScalarType> tree(wrapper);
-
                      int ind = 0;
                      float min_dist = 0.0;
                      Point3m location(x,y,z);
@@ -1064,9 +1069,29 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
                      }
                     
                      //Find neighborhood
+                     /*VertexConstDataWrapper<CMeshO> wrapper(m.cm);
+                     KdTree<typename CMeshO::ScalarType> tree(wrapper);
+
                      vector<float> dists;
                      vector<unsigned int> points;
-                     tree.doQueryDist(m.cm.vert[ind].cP(),radius,points,dists);
+                     tree.doQueryDist(m.cm.vert[ind].cP(),radius,points,dists);*/
+
+                     std::vector<CMeshO::VertexPointer> NotReachableVector;
+                     std::vector<CMeshO::VertexPointer> BorderVector;
+                     std::vector<CMeshO::VertexPointer> ComponentVector;
+                     CMeshO::VertexPointer StartingVertex = &(m.cm.vert[ind]);
+                     NotReachableVector.clear();
+                     ComponentVector.clear();
+                     float maxHop = m.cm.bbox.Diag() / 100.0;
+                     tri::ComponentFinder<CMeshO>::Dijkstra(m.cm, *StartingVertex, 6, maxHop, NotReachableVector);
+
+                     //Get component as list of points
+                     ComponentVector = tri::ComponentFinder<CMeshO>::FindComponent(m.cm, radius, BorderVector, NotReachableVector);
+                     tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
+                     for(int ii=0;ii<ComponentVector.size();ii++)
+                        ComponentVector[ii]->SetS();
+                     vector<unsigned int> points = get_selected_indices(m);
+                     tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
 
                      get_vertices(m, points, vecx, vecy, vecz);
                      get_normals(m, points, normalx, normaly, normalz);
@@ -1135,7 +1160,7 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
       {
          //Action is based on how many vertices are selected (0,1,>1)
          //If no points are selected
-         if (num_selected_pts == 0) { 
+         if (num_selected_pts <= 10) { 
 
 
 
@@ -1221,14 +1246,32 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
             for(j=0; j < queue.getNofElements(); j++)
                rmax = MAX(rmax,Distance(m.cm.vert[i].cP(),m.cm.vert[queue.getIndex(j)].cP()));
             
+            //Geodesic distance function
+            std::vector<CMeshO::VertexPointer> NotReachableVector;
+            std::vector<CMeshO::VertexPointer> BorderVector;
+            std::vector<CMeshO::VertexPointer> ComponentVector;
+            CMeshO::VertexPointer StartingVertex = &(m.cm.vert[i]);
+            NotReachableVector.clear();
+            float maxHop = m.cm.bbox.Diag() / 100.0;
+            tri::ComponentFinder<CMeshO>::Dijkstra(m.cm, *StartingVertex, 6, maxHop, NotReachableVector);
+
             //Loop over radii
             float change = (rmax-rmin)/(num_radii-1), rad = rmin;
             for(j=0;j<num_radii;j++){
 
                //Find neighborhood
-               vector<float> dists;
+               /*vector<float> dists;
                vector<unsigned int> points;
-               tree.doQueryDist(m.cm.vert[i].cP(),rad,points,dists);
+               tree.doQueryDist(m.cm.vert[i].cP(),rad,points,dists);*/
+               
+               //Get component as list of points
+               ComponentVector.clear();
+               ComponentVector = tri::ComponentFinder<CMeshO>::FindComponent(m.cm, rad, BorderVector, NotReachableVector);
+               tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
+               for(int ii=0;ii<ComponentVector.size();ii++)
+                  ComponentVector[ii]->SetS();
+               vector<unsigned int> points = get_selected_indices(m);
+               tri::UpdateSelection<CMeshO>::VertexClear(m.cm);
 
                //Run virtual goniometer
                get_vertices(m, points, vecx, vecy, vecz);
