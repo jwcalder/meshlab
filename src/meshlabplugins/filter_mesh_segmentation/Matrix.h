@@ -31,6 +31,7 @@ std::vector<double> splice(std::vector<double> w1, std::vector<double> w2, std::
 std::vector<double> sum(Matrix rhs, int axis);
 std::vector<int> argmax(Matrix rhs, int axis);
 double max(const std::vector<double>& v);
+double sum(const std::vector<double>& v);
 int max(const std::vector<int>& v);
 
 std::vector<double> sqrt(std::vector<double> rhs);

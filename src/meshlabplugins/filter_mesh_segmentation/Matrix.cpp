@@ -256,7 +256,8 @@ Matrix conjgrad(SparseMatrix& A, Matrix& b, double tol, int T){
       r -= Ap.col_multiply(alpha);
 
       std::vector<double> rsnew = sum(r.multiply(r),0);
-      double err = norm(rsnew);
+      //double err = norm(rsnew);
+      double err = sqrt(sum(rsnew));
       //printf("i:%d,err:%f\n",i,err);
       if(err < tol)
          break;
@@ -282,7 +283,7 @@ Matrix conjgrad(Matrix& A, Matrix& b, double tol, int T){
       r -= Ap.col_multiply(alpha);
 
       std::vector<double> rsnew = sum(r.multiply(r),0);
-      if(norm(rsnew) < tol)
+      if(sqrt(sum(rsnew)) < tol)
          break;
       
       p = r + p.col_multiply(rsnew/rsold);
@@ -339,7 +340,9 @@ int max(const std::vector<int>& v){
       result = std::max(v[i],result);
    return result;
 }
-
+double sum(const std::vector<double>& v){
+   return std::accumulate(v.begin(),v.end(), 0.0);
+}
 double max(const std::vector<double>& v){
    double result = v[0];
    for(int i=0; i<v.size(); i++)
