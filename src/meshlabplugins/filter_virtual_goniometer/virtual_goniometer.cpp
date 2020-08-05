@@ -125,7 +125,12 @@ QString VirtualGoniometerFilterPlugin::filterInfo(FilterIDType filterId) const
 {
  switch(filterId)
  {
-	case FP_QUALITY_VIRTUAL_GONIOMETER:       return tr("Compute the angle across a break edge.");
+	//case FP_QUALITY_VIRTUAL_GONIOMETER:       return tr("Compute the angle across a break edge.");
+   case FP_QUALITY_VIRTUAL_GONIOMETER:   return tr("Compute the angle across a break edge.<br><br>"
+                                                "This plugin was developed by researchers at the University of Minnesota affiliated with the <b><a href='http://amaaze.umn.edu'>AMAAZE</a></b> consortium.<br>" 
+                                                "Documentation is available here: <a href='https://amaaze.umn.edu/'>https://amaaze.umn.edu/</a>.<br>"
+                                                "Questions or comments can be emailed to <a href= 'mailto:amaaze@umn.edu'>amaaze@umn.edu</a>.<br>");
+
 	case FP_QUALITY_VIRTUAL_GONIOMETER_NEXT:  return tr("Advance to next break curve.");
 	case FP_QUALITY_VIRTUAL_GONIOMETER_UNDO:  return tr("Undo a Virtual Goniometer measurement.");
 	case FP_QUALITY_VIRTUAL_GONIOMETER_RESET:  return tr("Reset Virtual Goniometer.");
