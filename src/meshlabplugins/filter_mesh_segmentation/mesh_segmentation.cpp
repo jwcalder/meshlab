@@ -175,7 +175,7 @@ tuple<float, int, float, vector<double>> load_params(char *out_file){
 
    float radius, p;
    int num_nodes;
-   vector<double> user_weights(C.size(),0.0);
+   vector<double> user_weights(C.size(),1.0);
    FILE *pFile;   
 
    label_ind_verts.clear();
@@ -391,7 +391,7 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
    //Load parameters from file
    float default_radius = 3.0, p = 1.0;
    int num_nodes = 5000;
-   vector<double> user_weights(C.size(),0.0);
+   vector<double> user_weights(C.size(),1.0);
    if(load_param_file){
       tie(default_radius,num_nodes,p,user_weights) = load_params(param_file);
       load_param_file = 0;
@@ -442,20 +442,35 @@ void MeshSegmentationFilterPlugin::initParameterSet(QAction *action, MeshModel &
 
 	parlst.addParam(new RichSaveFile ("FileName",param_file, "*.txt", "Parameter file", "Name of parameter file to load or save to."));
 
-   parlst.addParam(new RichDynamicFloat("Face1", user_weights[0],-1,1,"Face 1 (Red)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face2", user_weights[1],-1,1,"Face 2 (Blue)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face3", user_weights[2],-1,1,"Face 3 (Green)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face4", user_weights[3],-1,1,"Face 4 (Magenta)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face5", user_weights[4],-1,1,"Face 5 (Yellow)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face6", user_weights[5],-1,1,"Face 6 (Cyan)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face7", user_weights[6],-1,1,"Face 7 (Light Green)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face8", user_weights[7],-1,1,"Face 8 (Light Red)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face9", user_weights[8],-1,1,"Face 9 (Dark Green)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face10",user_weights[9],-1,1,"Face 10 (Dark Red)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face11",user_weights[10],-1,1,"Face 11 (Dark Blue)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face12",user_weights[11],-1,1,"Face 12 (White)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face13",user_weights[12],-1,1,"Face 13 (Gray)", "Parameter controlling how heavily to weight the face."));
-   parlst.addParam(new RichDynamicFloat("Face14",user_weights[13],-1,1,"Face 14 (Black)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face1", user_weights[0],-1,1,"Face 1 (Red)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face2", user_weights[1],-1,1,"Face 2 (Blue)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face3", user_weights[2],-1,1,"Face 3 (Green)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face4", user_weights[3],-1,1,"Face 4 (Magenta)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face5", user_weights[4],-1,1,"Face 5 (Yellow)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face6", user_weights[5],-1,1,"Face 6 (Cyan)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face7", user_weights[6],-1,1,"Face 7 (Light Green)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face8", user_weights[7],-1,1,"Face 8 (Light Red)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face9", user_weights[8],-1,1,"Face 9 (Dark Green)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face10",user_weights[9],-1,1,"Face 10 (Dark Red)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face11",user_weights[10],-1,1,"Face 11 (Dark Blue)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face12",user_weights[11],-1,1,"Face 12 (White)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face13",user_weights[12],-1,1,"Face 13 (Gray)", "Parameter controlling how heavily to weight the face."));
+   //parlst.addParam(new RichDynamicFloat("Face14",user_weights[13],-1,1,"Face 14 (Black)", "Parameter controlling how heavily to weight the face."));
+
+   parlst.addParam(new RichFloat("Face1", user_weights[0],1,"Face 1 (Red)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face2", user_weights[1],1,"Face 2 (Blue)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face3", user_weights[2],1,"Face 3 (Green)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face4", user_weights[3],1,"Face 4 (Magenta)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face5", user_weights[4],1,"Face 5 (Yellow)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face6", user_weights[5],1,"Face 6 (Cyan)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face7", user_weights[6],1,"Face 7 (Light Green)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face8", user_weights[7],1,"Face 8 (Light Red)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face9", user_weights[8],1,"Face 9 (Dark Green)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face10",user_weights[9],1,"Face 10 (Dark Red)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face11",user_weights[10],1,"Face 11 (Dark Blue)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face12",user_weights[11],1,"Face 12 (White)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face13",user_weights[12],1,"Face 13 (Gray)", "Parameter controlling how heavily to weight the face."));
+   parlst.addParam(new RichFloat("Face14",user_weights[13],1,"Face 14 (Black)", "Parameter controlling how heavily to weight the face."));
 
 }
 
@@ -485,8 +500,9 @@ tuple<SparseMatrix, SparseMatrix, vector<unsigned int>, vector<unsigned int>, in
    for(i=0; i<num_verts; i++)
       subset[i] = i;
    
-   random_device rd;
-   mt19937 g(rd());
+   //random_device rd;
+   //mt19937 g(rd());
+   mt19937 g;
    shuffle(subset.begin(), subset.end(), g);
    subset.resize(num_nodes);
    
@@ -636,7 +652,7 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
    static bool RunOnce = 0;
    float radius, p;
    int num_nodes;
-   vector<double> user_weights(C.size(),0.0);
+   vector<double> user_weights(C.size(),1.0);
 
    //Load all parameters
    int FaceIndex = par.getEnum("FaceIndex");
@@ -689,20 +705,35 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
       num_k = points.size();
 
       //Get weights
-      user_weights[0] = par.getDynamicFloat("Face1");
-      user_weights[1] = par.getDynamicFloat("Face2");
-      user_weights[2] = par.getDynamicFloat("Face3");
-      user_weights[3] = par.getDynamicFloat("Face4");
-      user_weights[4] = par.getDynamicFloat("Face5");
-      user_weights[5] = par.getDynamicFloat("Face6");
-      user_weights[6] = par.getDynamicFloat("Face7");
-      user_weights[7] = par.getDynamicFloat("Face8");
-      user_weights[8] = par.getDynamicFloat("Face9");
-      user_weights[9] = par.getDynamicFloat("Face10");
-      user_weights[10] = par.getDynamicFloat("Face11");
-      user_weights[11] = par.getDynamicFloat("Face12");
-      user_weights[12] = par.getDynamicFloat("Face13");
-      user_weights[13] = par.getDynamicFloat("Face14");
+      //user_weights[0] = par.getDynamicFloat("Face1");
+      //user_weights[1] = par.getDynamicFloat("Face2");
+      //user_weights[2] = par.getDynamicFloat("Face3");
+      //user_weights[3] = par.getDynamicFloat("Face4");
+      //user_weights[4] = par.getDynamicFloat("Face5");
+      //user_weights[5] = par.getDynamicFloat("Face6");
+      //user_weights[6] = par.getDynamicFloat("Face7");
+      //user_weights[7] = par.getDynamicFloat("Face8");
+      //user_weights[8] = par.getDynamicFloat("Face9");
+      //user_weights[9] = par.getDynamicFloat("Face10");
+      //user_weights[10] = par.getDynamicFloat("Face11");
+      //user_weights[11] = par.getDynamicFloat("Face12");
+      //user_weights[12] = par.getDynamicFloat("Face13");
+      //user_weights[13] = par.getDynamicFloat("Face14");
+
+      user_weights[0]  = par.getFloat("Face1");
+      user_weights[1]  = par.getFloat("Face2");
+      user_weights[2]  = par.getFloat("Face3");
+      user_weights[3]  = par.getFloat("Face4");
+      user_weights[4]  = par.getFloat("Face5");
+      user_weights[5]  = par.getFloat("Face6");
+      user_weights[6]  = par.getFloat("Face7");
+      user_weights[7]  = par.getFloat("Face8");
+      user_weights[8]  = par.getFloat("Face9");
+      user_weights[9]  = par.getFloat("Face10");
+      user_weights[10] = par.getFloat("Face11");
+      user_weights[11] = par.getFloat("Face12");
+      user_weights[12] = par.getFloat("Face13");
+      user_weights[13] = par.getFloat("Face14");
    }
    
    //Number of nodes cannot be more than number of vertices
@@ -729,8 +760,10 @@ bool MeshSegmentationFilterPlugin::applyFilter(QAction *action, MeshDocument &md
    //Convert user weights to face weights
    vector<int> label_map = get_label_map(label_val);
    vector<double> face_weights;
-   for(int i=0; i < label_map.size(); i++)
-      face_weights.push_back(weight_map(user_weights[label_map[i]]));
+   for(int i=0; i < label_map.size(); i++){
+      //face_weights.push_back(weight_map(user_weights[label_map[i]]));
+      face_weights.push_back(user_weights[label_map[i]]);
+   }
 
    if(AdjustWeights && RunOnce){
       ColorMesh(m,argmax(I*u.col_multiply(face_weights),1),label_map);
