@@ -1202,7 +1202,7 @@ bool VirtualGoniometerFilterPlugin::applyFilter(QAction *action, MeshDocument &m
                ComponentVector.clear();
                float maxHop = m.cm.bbox.Diag() / 100.0;
                tri::ComponentFinder<CMeshO>::Dijkstra(m.cm, *StartingVertex, 6, maxHop, NotReachableVector);
-               ComponentVector = tri::ComponentFinder<CMeshO>::FindComponent(m.cm, radius, BorderVector, NotReachableVector);
+               ComponentVector = tri::ComponentFinder<CMeshO>::FindComponent(m.cm, radius+1e-5, BorderVector, NotReachableVector);
 
 
                /*VertexConstDataWrapper<CMeshO> wrapper(m.cm);
