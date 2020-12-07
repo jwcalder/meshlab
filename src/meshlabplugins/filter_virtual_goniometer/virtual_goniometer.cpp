@@ -126,9 +126,10 @@ QString VirtualGoniometerFilterPlugin::filterInfo(FilterIDType filterId) const
  switch(filterId)
  {
 	//case FP_QUALITY_VIRTUAL_GONIOMETER:       return tr("Compute the angle across a break edge.");
-   case FP_QUALITY_VIRTUAL_GONIOMETER:   return tr("Compute the angle across a break edge.<br><br>"
-                                                "This plugin was developed by researchers at the University of Minnesota affiliated with the <b><a href='http://amaaze.umn.edu'>AMAAZE</a></b> consortium.<br>" 
-                                                "Documentation is available here: <a href='https://amaaze.umn.edu/'>https://amaaze.umn.edu/</a>.<br>"
+   case FP_QUALITY_VIRTUAL_GONIOMETER:   return tr("<b>Virtual Goniometer</b>: Computes the angle across a break edge.<br><br>"
+     "Yezzi-Woodley, Calder, Olver, et al., <b>The Virtual Goniometer: A new method for measuring angles on 3D models of fragmentary bone and lithics.</b> <a href=https://arxiv.org/abs/2011.04898>arXiv preprint:2011.04898</a>, 2020.<br>"
+                                                "This plugin was developed by the <b><a href='http://amaaze.umn.edu'>AMAAZE</a></b> consortium.<br>" 
+                                                "Documentation is available here: <a href='https://amaaze.umn.edu/software'>https://amaaze.umn.edu/software</a>.<br>"
                                                 "Questions or comments can be emailed to <a href= 'mailto:amaaze@umn.edu'>amaaze@umn.edu</a>.<br>");
 
 	case FP_QUALITY_VIRTUAL_GONIOMETER_NEXT:  return tr("Advance to next break curve.");
